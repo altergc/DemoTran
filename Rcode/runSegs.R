@@ -47,11 +47,11 @@ dfOut <- data.frame(Country=character(),
                     endCBRmav=double(), 
                     startCDRmav=double(), 
                     endCDRmav=double(),
-                    YrRate50=double(),
-                    YrRate40=double(),
-                    YrRate30=double(),
-                    YrRate20=double(),
-                    YrRate10=double(),
+                    YrRate45=double(),
+                    YrRate35=double(),
+                    YrRate25=double(),
+                    YrRate15=double(),
+                    YrRate05=double(),
                     maxRNI=double()
                     )
 
@@ -84,15 +84,46 @@ breaks <- list(break1=double(),
                obsB4=double())
 #######################################################################
 
+df3 <- data.frame(
+          Country=character(),
+          year =integer(),
+          RegionCode=integer(),
+          RegionName=character(),
+          SubRegionCode=integer(),
+          SubRegionName=character(),
+          CBR= double(),
+          CDR= double(),
+          RNI= double(),
+          RNI_11= double(),
+          CBR_MAV= double(),
+          CDR_MAV= double(),
+          CBRpred= double(),
+          CDRpred= double()
+        )
+
+print("mark 1")     ####### debugging checkpoint 
+
+
+
 ##########  run segments function ############################
 
-runSegs <- function(spec, dVar ) {  
-      ### 'spec' is the regression model
-      ### 'dVar' is the variable (CBR or CDR)
+runSegs <- function() {  
+
   
-      cat("\n\n*********  ", selCountry, "*********")
+    cat("\n\n*********  ", selCountry, "*********")
+ 
+    startYear <-- min(df2$year)
+    endYear <-- max(df2$year)
+    maxRNI <-- max(df2$RNI)
   
-      ##### fit a linear model 
+  
+  ####### 'dVar' loop for CBR and CDR  #####################
+  for (dVar in c("CBR" , "CDR" )  ) {
+ 
+    ##### spec is the regression model 
+      spec <- paste(dVar, " ~ year") 
+
+          ##### fit a linear model 
       fit.lm <- lm(spec, data=df2 )
       
       #####  selgmented selects the best fit segmented model 
@@ -117,7 +148,6 @@ runSegs <- function(spec, dVar ) {
       ####%%%%% pad vector of predicted values when dependent variable 11-pt moving average %%%%%%%%%%
       if (length(pr1)<length(df2$year) ) {pr1 <<- c(NA, NA, NA, NA, NA, pr1, NA, NA, NA, NA, NA)}
       
-print("mark 1")     ####### debugging checkpoint 
       
       
       #### add predicted values to dataframe 'df2'
@@ -129,7 +159,8 @@ print("mark 2")     ####### debugging checkpoint
       
       #### print summary statistics     
       cat("\n\nSummary Observed and Predicted:\n")
-      ss0 <- df2 %>% select( c( all_of({{ dVar }} ), predVar ) ) %>% summary()
+##      ss0 <- df2 %>% select( c( {{ dVar }} , predVar ) ) %>% summary()
+      ss0 <- df2[c( dVar, predVar ) ] %>% summary()
       print(ss0)
       
       ps2 <- paste("ps", dVar, sep="_"  )
@@ -147,10 +178,10 @@ print("mark 2")     ####### debugging checkpoint
       prWide <- predict(fit.seg, newdata = data.frame(year = extYears) )
       
       #####  'xval' is vector of observed years in which milestones were reached
-      xval <- approx(x = pr1 , y=df2$year , xout = c(50, 40, 30, 20, 10))$y
+      xval <- approx(x = pr1 , y=df2$year , xout = c(45, 35, 25, 15, 5))$y
       
       #####  'xvalwide' is vector of milestone years extrapolated 
-      xvalWide <- approx(x = prWide , y=extYears , xout = c(50, 40, 30, 20, 10))$y
+      xvalWide <- approx(x = prWide , y=extYears , xout = c(45, 35, 25, 15, 5))$y
       
       #####  use 'xvalwide' when 'xval' is not available
       for (yy in c(1,2,3,4,5)) {
@@ -169,8 +200,7 @@ print("mark 2")     ####### debugging checkpoint
         coeffs[cc+5] <<- coef(summary(fit.seg))[cc,2]
       }
     }
-
-
+      
 ####### collect breakpoints and SEs in 'breaks' ##################################
     for (bb in 1:4) {
       breaks[bb] <<- NA
@@ -179,7 +209,7 @@ print("mark 2")     ####### debugging checkpoint
       if (bb<=nbreaks) {
         breaks[bb] <<- fit.seg$psi[bb,2]
         breaks[bb+4] <<- fit.seg$psi[bb,3]
-        breaks[bb+8] <<- df2 %>% subset( year==round(breaks[[bb]])) %>% select( all_of(sym(dVar) ) )
+        breaks[bb+8] <<- df2 %>% subset( year==round(breaks[[bb]])) %>% dplyr::select( dVar )  
       }
     }
 
@@ -190,7 +220,7 @@ print("mark 2")     ####### debugging checkpoint
                                  df2$RegionName[1],
                                  df2$SubRegionCode[1],
                                  df2$SubRegionName[1],
-                                 demoVar,
+                                 dVar,
                                  osel$selection.psi$npsi,
                                  osel$selection.psi$bic.values[2,1],
                                  osel$selection.psi$bic.values[2,2],
@@ -232,10 +262,7 @@ print("mark 2")     ####### debugging checkpoint
                                  maxRNI
                                  ) )
       
-      cat("mark 3----", selCountry)       ####### debugging checkpoint 
-     
-      
-
+ 
       ####  Add row to output dataframe 'dfout' #########################
         dfOut <<- rbind(dfOut, setNames(dtemp, names(dfOut)))
         
@@ -264,7 +291,7 @@ print("mark 2")     ####### debugging checkpoint
         print(
           ggplot(df2, mapping=aes(x=year )) +
             ggtitle(selCountry) +
-            geom_point( aes(y = !!sym(demoVar)   , color=demoVar, group=1  ) ) +
+            geom_point( aes(y = !!sym(dVar)   , color=dVar, group=1  ) ) +
             geom_line( aes(y=!!sym(predVar), color="Predicted" , group=1) ) +
             labs(color = "Variable") +
             scale_y_continuous(name="rate" , limits= c(0,60) ) +
@@ -273,5 +300,32 @@ print("mark 2")     ####### debugging checkpoint
              
       }
 
+  #### end dVar loop  #################
+  
+  ###### combined graph  ##################
+  xmax <- max(df2$year)
+  xmin <- min(df2$year)
+  xbrks <- round((xmax -xmin)/10, 0)
+  print(
+    ggplot(df2, mapping=aes(x=year )) +
+      ggtitle(selCountry) +
+      geom_point( aes(y=CDR, color="CDR" , group=1) ) +
+      geom_point( aes(y=CBR, color="CBR" , group=1 ) ) +
+      geom_line( aes(y=CDRpred, color="CDRpred" , group=1) ) +
+      geom_line( aes(y=CBRpred, color="CBRpred" , group=1 ) ) +
+      scale_x_continuous(name="Years",  breaks = c(seq(xmin, xmax, xbrks)) )+
+      scale_y_continuous(name="Rate",  limit=c( 0, 50), breaks = c(   0,   10 ,   20,   30,   40, 50) ) +
+      scale_color_manual(values=c("blue", "blue", "red", "red" ))
+  )
+
+  
+  cat("\nmark 3----", selCountry, "\n")       ####### debugging checkpoint 
+  
+    
+   ##################################
+   df3 <<- rbind(df3,  df2  )
+  
+  
+}
 ########## end runsegs ###########################
 
