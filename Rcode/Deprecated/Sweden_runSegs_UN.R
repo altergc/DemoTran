@@ -67,10 +67,10 @@ cat(selTitle, "%%%%%%%%%%")
 dev.off()
 
 #####  save dfOut dataframe of statistics to disk  ##########
-save(dfOut, file='Data/dfOut_3_SwedTaiw.rdata')
+save(dfOut, file='Data/dfOut_3.rdata')
 
 
 #####  save df3 dataframe of observed and predicted to disk  ##########
-save(df3, file='Data/dfPred3_SwedTaiw.rdata')
+save(df3, file='Data/dfPred3.rdata')
 
 graphics.off()
